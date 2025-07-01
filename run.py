@@ -57,12 +57,14 @@ RESET_SIGNAL = False #由手柄触发，用于重置机械臂姿态到初始位�
 
 # RIGTH_INIT_JOINT = [-112.0, -54.2, -15.2, -85.60, -14.7, 72.2, -33.3]
 LEFT_INIT_JOINT = [ 
-    -81.89700317382812,
-    -63.111000061035156,44.847999572753906,
-    -88.18399810791016,-3.803999900817871,
-    90.06500244140625,9.517999649047852
+    -81.89600372314453,
+    -63.111000061035156,
+    44.849998474121094,
+    -88.18399810791016,
+    -3.802000045776367,
+    90.06800079345703,
+    9.515999794006348,
         ]
-
 def init_joy():
     pygame.init()
     pygame.joystick.init()
@@ -106,14 +108,16 @@ def maniplation(policy_url="http://localhost:2345", right_ram_url="192.168.10.19
     # 实例化逆解库             
     qp = QPIK("RM75B", dT)
     # qp.set_install_angle([90, 180, 0], 'deg')
-    qp.set_install_angle([0, 90, 0], 'deg')
+    qp.set_install_angle([0, -90, 0], 'deg')
 
-    qp.set_work_cs_params([0, 0, 0, 0, 1.570, 0])
+    qp.set_work_cs_params([0, 0, 0, 0, -1.570, 0])
     qp.set_tool_cs_params([0, 0, 0, 0, 0, 0])
 
-    qp.set_joint_limit_max([ 178,  130,  178,  135,  178,  128, 360], 'deg')
-    qp.set_joint_limit_min([-178, -130, -178, -135, -178, -128, -360], 'deg')
-
+    #qp.set_joint_limit_max([ 178,  130,  178,  135,  178,  128, 360], 'deg')
+    #qp.set_joint_limit_min([-178, -130, -178, -135, -178, -128, -360], 'deg')
+    qp.set_joint_limit_max([ -40,  -10,  178,  135,  178,  128, 360], 'deg')
+    qp.set_joint_limit_min([-140, -100, -178, -135, -178, -128, -360], 'deg')
+    
     qp.set_7dof_elbow_min_angle(-135, 'deg')
     qp.set_7dof_elbow_max_angle(-3, 'deg')
 
