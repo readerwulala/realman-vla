@@ -19,12 +19,12 @@ def vex(s):
     return np.array([s[2, 1] - s[1, 2], s[0, 2] - s[2, 0], s[1, 0] - s[0, 1]]) / 2
 
 def T2t(T):
-    T = np.mat(T)
+    T = np.asmatrix(T)
     t = T[0:3,3]
     return t
 
 def T2r(T):
-    T = np.mat(T)
+    T = np.asmatrix(T)
     R = T[0:3,0:3]
     return R
 
@@ -48,7 +48,7 @@ def norm(v):
     return np.sqrt(sum)
 
 def pose_to_matrix_inv(pose):
-    T = np.mat(np.eye(4,4))
+    T = np.asmatrix(np.eye(4,4))
     x = pose[0]
     y = pose[1]
     z = pose[2]
@@ -81,7 +81,7 @@ def pose_to_matrix_inv(pose):
     return T
 
 def pose_to_matrix(pose):
-    T = np.mat(np.eye(4,4))
+    T = np.asmatrix(np.eye(4,4))
     x = pose[0]
     y = pose[1]
     z = pose[2]
@@ -113,8 +113,8 @@ def pose_to_matrix(pose):
     return T
 
 def T2delta_diff(T,Td):
-    T  = np.mat(T)
-    Td = np.mat(Td)
+    T  = np.asmatrix(T)
+    Td = np.asmatrix(Td)
     Terr = T_inv(T) @ Td
     dX = T2t(Terr)
     dR = vex(T2r(Terr) - np.eye(3)).tolist()

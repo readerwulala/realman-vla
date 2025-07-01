@@ -103,7 +103,7 @@ def maniplation(policy_url="http://localhost:2345", right_ram_url="192.168.10.19
     global RESET_SIGNAL, REALSENSE_IMAGE, MANIPLATION_RUNNIG, START
 
     policy = PolicyClient(base_url=policy_url)
-    print(f"{policy_url} - policy connection state: {policy.reset()}")
+    #print(f"{policy_url} - policy connection state: {policy.reset()}")
 
     # 实例化逆解库             
     qp = QPIK("RM75B", dT)
@@ -175,9 +175,19 @@ def maniplation(policy_url="http://localhost:2345", right_ram_url="192.168.10.19
             #################################################################
             delta_actions = policy.process_frame(image=cur_image) #delta_actions 是 [dx, dy, dz, rx, ry, rz, gripper_value]
             print(f"policy action: {delta_actions}")
-
+            #####test##########
+            #delta_left_actions = delta_actions[0]
+            #print(type(delta_left_actions), type(delta_left_actions[0]))
+#           ##########
             # new pose
+            
+            ##Add
+            delta_actions = delta_actions[0]
+            ##
+
             delta_left_actions, left_griper = delta_actions[:-1], delta_actions[-1]
+            print(len(cur_left_pose), type(cur_left_pose[0]))
+            print(len(delta_left_actions), type(delta_left_actions[0]))
             new_left_pose = [cur_left_pose[i] + delta_left_actions[i] for i in range(len(delta_left_actions))]
             x, y, z = new_left_pose[:3]
             euler = new_left_pose[3:]

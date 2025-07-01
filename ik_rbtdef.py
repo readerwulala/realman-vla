@@ -21,7 +21,7 @@ def get_mdh_Ti(i, dh, theta):
     offset = dh.offset[i]
     q  = theta[i] + offset
 
-    Ti  = np.mat(np.eye(4,4))
+    Ti  = np.asmatrix(np.eye(4,4))
     s_q = np.sin(q)
     c_q = np.cos(q)
     s_alpha = np.sin(alpha)
@@ -58,7 +58,7 @@ class MDH():
 
 class Robot():
     dof = 7
-    __T = np.mat(np.eye(4,4))
+    __T = np.asmatrix(np.eye(4,4))
     __Ti = [__T,__T,__T,__T,__T,__T,__T]
     __Twork = __T
     __Tbase = __T
@@ -214,8 +214,8 @@ class Robot():
         return self.__Ttool
     
     # 正运动学
-    def fkine(self, q)->np.mat:
-        T0n = np.mat(np.eye(4,4))
+    def fkine(self, q)->np.asmatrix:
+        T0n = np.asmatrix(np.eye(4,4))
         for i in range(0, self.dof):
             self.__Ti[i] = get_mdh_Ti(i,self.__dh,q)
             T0n = T0n @ self.__Ti[i]
@@ -224,11 +224,11 @@ class Robot():
         return self.__T
     
     # tool系下的雅可比
-    def jacob_Jn(self,q)->np.mat:
+    def jacob_Jn(self,q)->np.asmatrix:
         n = self.dof
         q = np.array(q)
         
-        J = np.mat(np.zeros((6, n), dtype=q.dtype))
+        J = np.asmatrix(np.zeros((6, n), dtype=q.dtype))
         U = self.__Ttool
 
         for j in range(n - 1, -1, -1):
@@ -241,12 +241,12 @@ class Robot():
 
             U = get_mdh_Ti(j, self.__dh, q) @ U
 
-        return np.mat(J)
+        return np.asmatrix(J)
     
     # work系下的雅可比
-    def jacob_Jw(self,q)->np.mat:
+    def jacob_Jw(self,q)->np.asmatrix:
         Twt = self.fkine(q)
-        JT  = np.mat(np.zeros((6,6)))
+        JT  = np.asmatrix(np.zeros((6,6)))
         Rwt = T2r(Twt)
         Jn = self.jacob_Jn(q)
         JT[0:3,0:3] = Rwt
