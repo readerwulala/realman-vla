@@ -8,7 +8,7 @@ import pyrealsense2 as rs
 # joy
 import pygame
 import sys
-
+import cv2
 import time
 from ik_rbtdef import *
 from ik_rbtutils import *
@@ -80,25 +80,44 @@ def init_joy():
     return joystick
 
 
-def get_vedio():
+def get_video():
     global REALSENSE_IMAGE
-
     pipeline = rs.pipeline()
     config = rs.config()
-    config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)  # 设置视频流的参数
-
+    config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
     pipeline.start(config)
+
+    # 丢弃前 30 帧
+    for _ in range(30):
+        if not pipeline.wait_for_frames().get_color_frame():
+            continue
 
     try:
         while True:
             frames = pipeline.wait_for_frames()
             color_frame = frames.get_color_frame()
-            if not color_frame: continue
-            REALSENSE_IMAGE = np.asanyarray(color_frame.get_data())
+            if not color_frame:
+                continue
+            img = np.asanyarray(color_frame.get_data())
+            REALSENSE_IMAGE = img
+            # 本地显示，调试看效果
+            #cv2.imshow("Realsense Live", img)
     finally:
         pipeline.stop()
 
-def maniplation(policy_url="http://localhost:2345", right_ram_url="192.168.10.19", left_arm_url="192.168.10.18", dT=0.1):
+def wait_for_realsense(threshold=100, interval=0.1):
+    """
+    等待 REALSENSE_IMAGE 拍到第一帧非黑屏图像。
+    threshold: 均值阈值，小于此值认为是黑屏。
+    interval: 轮询间隔（秒）。
+    """
+    print("等待摄像头图像准备中…")
+    while REALSENSE_IMAGE is None or np.mean(REALSENSE_IMAGE) < threshold:
+        time.sleep(interval)
+    #cv2.imshow(REALSENSE_IMAGE)
+    print("摄像头已就绪，启动策略线程")
+
+def maniplation(policy_url="http://localhost:2345", right_ram_url="192.168.10.19", left_arm_url="192.168.10.18", dT=0.05):
 
     global RESET_SIGNAL, REALSENSE_IMAGE, MANIPLATION_RUNNIG, START
 
@@ -154,7 +173,8 @@ def maniplation(policy_url="http://localhost:2345", right_ram_url="192.168.10.19
 
         if RESET_SIGNAL:
             RESET_SIGNAL = False
-            left_arm.Movej_CANFD(LEFT_INIT_JOINT, False)
+            left_arm.Set_Gripper_Release(500, block=False)
+            left_arm.Movej_CANFD(LEFT_INIT_JOINT, False)   
             time.sleep(dT)
             continue
 
@@ -167,7 +187,7 @@ def maniplation(policy_url="http://localhost:2345", right_ram_url="192.168.10.19
             # is running, and not to get policy action
             cur_left_joint = last_left_joint
         #elif REALSENSE_IMAGE is not None or True:
-        elif REALSENSE_IMAGE is not None:
+        elif REALSENSE_IMAGE is not None or True:
             # getting policy action
             cur_image = REALSENSE_IMAGE
             #################################################################
@@ -180,9 +200,10 @@ def maniplation(policy_url="http://localhost:2345", right_ram_url="192.168.10.19
             #delta_actions = delta_actions[0]
             # new pose
             for idx, single_action in enumerate(delta_actions, 1):
+                if START == False: break
                 delta_left_actions, left_griper = single_action[:-1], single_action[-1]
-                print(len(cur_left_pose), type(cur_left_pose[0]))
-                print(len(delta_left_actions), type(delta_left_actions[0]))            
+                #print(len(cur_left_pose), type(cur_left_pose[0]))
+                #print(len(delta_left_actions), type(delta_left_actions[0]))            
                 #更新末端位姿
 
                 new_left_pose = [cur_left_pose[i] + delta_left_actions[i] for i in range(len(delta_left_actions))]
@@ -220,9 +241,9 @@ def maniplation(policy_url="http://localhost:2345", right_ram_url="192.168.10.19
 if __name__ == '__main__':
 
     # start realsense get pic 创建图像采集线程
-    thread1 = threading.Thread(target=get_vedio, args=(), daemon=True)
+    thread1 = threading.Thread(target=get_video, args=(), daemon=True)
     thread1.start()
-
+    wait_for_realsense()
     # policy maniplation 创建策略执行线程
     thread2 = threading.Thread(target=maniplation, args=("http://localhost:2345", "192.168.10.19", "192.168.10.18", 0.1), daemon=True)
     thread2.start()
