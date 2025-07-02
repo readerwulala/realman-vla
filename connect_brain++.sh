@@ -1,0 +1,1 @@
+ssh -CAXY -L 2345:localhost:2345 cgy.chenguanyu.megvii-basemodel.ws@hh-d.brainpp.cn

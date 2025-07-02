@@ -166,7 +166,8 @@ def maniplation(policy_url="http://localhost:2345", right_ram_url="192.168.10.19
         if max(left_pose_queue.variance()) == -100: # 使用透传时需要
             # is running, and not to get policy action
             cur_left_joint = last_left_joint
-        elif REALSENSE_IMAGE is not None or True:
+        #elif REALSENSE_IMAGE is not None or True:
+        elif REALSENSE_IMAGE is not None:
             # getting policy action
             cur_image = REALSENSE_IMAGE
             #################################################################
@@ -174,45 +175,41 @@ def maniplation(policy_url="http://localhost:2345", right_ram_url="192.168.10.19
             # cur_image, cur_index = frames[cur_index], cur_index + 1
             #################################################################
             delta_actions = policy.process_frame(image=cur_image) #delta_actions 是 [dx, dy, dz, rx, ry, rz, gripper_value]
-            print(f"policy action: {delta_actions}")
-            #####test##########
-            #delta_left_actions = delta_actions[0]
-            #print(type(delta_left_actions), type(delta_left_actions[0]))
-#           ##########
+            num_actions = len(delta_actions)
+            #print(f"policy action: {delta_actions}")
+            #delta_actions = delta_actions[0]
             # new pose
-            
-            ##Add
-            delta_actions = delta_actions[0]
-            ##
+            for idx, single_action in enumerate(delta_actions, 1):
+                delta_left_actions, left_griper = single_action[:-1], single_action[-1]
+                print(len(cur_left_pose), type(cur_left_pose[0]))
+                print(len(delta_left_actions), type(delta_left_actions[0]))            
+                #更新末端位姿
 
-            delta_left_actions, left_griper = delta_actions[:-1], delta_actions[-1]
-            print(len(cur_left_pose), type(cur_left_pose[0]))
-            print(len(delta_left_actions), type(delta_left_actions[0]))
-            new_left_pose = [cur_left_pose[i] + delta_left_actions[i] for i in range(len(delta_left_actions))]
-            x, y, z = new_left_pose[:3]
-            euler = new_left_pose[3:]
-            R = euler_to_matrix(euler)
-            T = [[R[0][0], R[0][1], R[0][2], x],
-                [R[1][0], R[1][1], R[1][2], y],
-                [R[2][0], R[2][1], R[2][2], z],
-                [0,       0,       0,       1]]
+                new_left_pose = [cur_left_pose[i] + delta_left_actions[i] for i in range(len(delta_left_actions))]
+                x, y, z = new_left_pose[:3]
+                euler = new_left_pose[3:]
+                R = euler_to_matrix(euler)
+                T = [[R[0][0], R[0][1], R[0][2], x],
+                    [R[1][0], R[1][1], R[1][2], y],
+                    [R[2][0], R[2][1], R[2][2], z],
+                    [0,       0,       0,       1]]
 
-            cur_left_joint = np.array(cur_left_joint) * deg2rad
-            cur_left_joint = qp.sovler(cur_left_joint, T)
-            cur_left_joint = [x * rad2deg for x in cur_left_joint]
-        # 设置夹爪
-        # 推荐阈值处理逻辑
-        if left_griper < 0.1:
-            left_arm.Set_Gripper_Pick(500, 500, block=False)
-        elif left_griper > 0.9:
-            left_arm.Set_Gripper_Release(500, block=False)
-        else:
-            left_arm.Set_Gripper_Release(500, block=False) 
-            print(f"Not in threshold: {left_griper}")
+                cur_left_joint = np.array(cur_left_joint) * deg2rad
+                cur_left_joint = qp.sovler(cur_left_joint, T)
+                cur_left_joint = [x * rad2deg for x in cur_left_joint]
+                # 设置夹爪处理逻辑
+                if left_griper < 0.1:
+                    left_arm.Set_Gripper_Pick(500, 500, block=False)
+                elif left_griper > 0.9:
+                    left_arm.Set_Gripper_Release(500, block=False)
+                else:
+                    left_arm.Set_Gripper_Release(500, block=False) 
+                    print(f"Not in threshold: {left_griper}")
 
-        # 设置位姿
-        left_arm.Movej_Cmd(cur_left_joint, 20, 0, 0, True)
-        last_left_joint = cur_left_joint
+                # 设置位姿
+                left_arm.Movej_Cmd(cur_left_joint, 20, 0, 0, True)
+                last_left_joint = cur_left_joint
+                print(f"Executing action {idx}/{num_actions}, left joint: {cur_left_joint}, gripper: {left_griper}")
 
         end_time = time.time()
         elapsed_time = end_time - start_time
