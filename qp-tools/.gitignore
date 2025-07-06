@@ -1,5 +1,6 @@
 build/
 bin/
+logs/
 matlab/*.mexa64
 matlab/*.mexw64
 python/build
