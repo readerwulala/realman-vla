@@ -5,7 +5,7 @@ import requests
 import cv2
 
 class PolicyClient:
-    def __init__(self, base_url='http://localhost:2345', max_frames=6, temperature=0.6, language_instruction="Pick up the green straw and insert it into the black cup on the table"):
+    def __init__(self, base_url='http://localhost:2345', max_frames=6, temperature=0.6, language_instruction="Pick up the straw and insert it into the cup on the table"):
         self.base_url = base_url
         self.max_frames = max_frames
         self.temperature = temperature
@@ -84,23 +84,22 @@ class PolicyClient:
 
         if len(act) != 7:
             return [0, 0, 0, 0, 0, self.last_action[-1]]
-
         # act_range = {
-        #     "world_vector_x": [-0.27, 0.3],
-        #     "world_vector_y": [-0.5, 0.5],
-        #     "world_vector_z": [-0.36, 0.36],
-        #     "rotation_delta_x": [-6, 6],
-        #     "rotation_delta_y": [-1.5, 1.3],
-        #     "rotation_delta_z": [-6.3, 6.3],
+        #     "world_vector_x": [-0.04, 0.03],
+        #     "world_vector_y": [-0.01, 0.02],
+        #     "world_vector_z": [-0.02, 0.02],
+        #     "rotation_delta_x": [-0.63, 0.86],
+        #     "rotation_delta_y": [-0.32, 0.26],
+        #     "rotation_delta_z": [-1.31, 1.5],
         #     "gripper_closedness_action": [0, 1]
         # }
         act_range = {
-            "world_vector_x": [-0.04, 0.03],
-            "world_vector_y": [-0.01, 0.02],
-            "world_vector_z": [-0.02, 0.02],
-            "rotation_delta_x": [-0.63, 0.86],
-            "rotation_delta_y": [-0.32, 0.26],
-            "rotation_delta_z": [-1.31, 1.5],
+            "world_vector_x": [-0.24, 0.24],
+            "world_vector_y": [-0.5, 0.5],
+            "world_vector_z": [-0.3, 0.3],
+            "rotation_delta_x": [-1.89, 1.86],
+            "rotation_delta_y": [-1.25, 1.25],
+            "rotation_delta_z": [-0.52, 0.53],
             "gripper_closedness_action": [0, 1]
         }
         wx_min = act_range['world_vector_x'][0]

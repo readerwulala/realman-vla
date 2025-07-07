@@ -73,7 +73,7 @@ def main():
             ###
             for action_idx, single_action in enumerate(delta_actions, 1):
                 delta_left_actions, left_gripper = single_action[:-1], single_action[-1]
-                print(f"动作 {action_idx}: delta_pose: {delta_left_actions}, gripper: {left_gripper}")
+                print(f"Action {action_idx}: Delta_pose: {delta_left_actions}, Gripper: {left_gripper}")
 
                 row_data = {
                     "frame": frame_idx,
