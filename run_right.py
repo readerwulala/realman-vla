@@ -142,9 +142,9 @@ def maniplation(policy_url="http://localhost:2345", right_arm_url="192.168.10.19
     # 实例化逆解库             
     qp = QPIK("RM75B", dT)
     # qp.set_install_angle([90, 180, 0], 'deg')
-    qp.set_install_angle([0, -90, 0], 'deg')
+    qp.set_install_angle([0, 90, 0], 'deg')
 
-    qp.set_work_cs_params([0, 0, 0, 0, -1.570, 0])
+    qp.set_work_cs_params([0, 0, 0, 0, 1.570, 0])
     qp.set_tool_cs_params([0, 0, 0, 0, 0, 0])
 
     #qp.set_joint_limit_max([ 178,  130,  178,  135,  178,  128, 360], 'deg')
@@ -309,6 +309,7 @@ if __name__ == '__main__':
     joystick = init_joy()
     while JOY_EVENT_RUNNING:
         for event in pygame.event.get():
+            
             if event.type == pygame.QUIT:
                 JOY_EVENT_RUNNING = False
                 MANIPLATION_RUNNIG = False

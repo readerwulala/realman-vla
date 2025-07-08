@@ -5,7 +5,7 @@ import requests
 import cv2
 
 class PolicyClient:
-    def __init__(self, base_url='http://localhost:2345', max_frames=6, temperature=0.6, language_instruction="Pick up the straw and insert it into the cup on the table"):
+    def __init__(self, base_url='http://localhost:2345', max_frames=6, temperature=0.6, language_instruction="Pick up the straw and put it into the cup"):
         self.base_url = base_url
         self.max_frames = max_frames
         self.temperature = temperature
