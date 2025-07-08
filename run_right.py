@@ -284,7 +284,7 @@ def maniplation(policy_url="http://localhost:2345", right_arm_url="192.168.10.19
                 right_arm.Set_Gripper_Release(500, block=False)#1为放
             else:
                 right_arm.Set_Gripper_Release(500, block=False) 
-                print(f"Not in threshold: {right_gripper}")
+                print(f"Not in threshold")
             right_arm.Movej_Cmd(cur_right_joint, 20, 0, 0, True)
             last_right_joint = cur_right_joint
             #print(f"Executing action {idx}/{num_actions}, right joint: {cur_right_joint}, gripper: {right_griper}")
