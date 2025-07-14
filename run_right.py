@@ -231,16 +231,16 @@ def maniplation(policy_url="http://localhost:2345", right_arm_url="192.168.10.19
                 print(f"夹爪{right_griper}")
 
                 for i in range(len(delta_right_actions)):
-                    if delta_right_actions[i] > 0.05:
-                        print("delta移动距离大于2cm, 危险, 已设置为0, 建议退出")
+                    if delta_right_actions[i] > 0.15:
+                        print("delta移动距离大于15cm, 危险, 已设置为0, 建议退出")
                         delta_right_actions[i] = 0
                     accum_delta_actions[i] += delta_right_actions[i]
 
             new_right_pose = []
             for i in range(len(accum_delta_actions)):
-                if abs(accum_delta_actions[i]) > 0.20:
+                if abs(accum_delta_actions[i]) > 0.50:
                     accum_delta_actions[i] = 0
-                    print("一帧移动大于15厘米, 危险, 已设置为0, 建议退出")
+                    print("一帧移动大于50厘米, 危险, 已设置为0, 建议退出")
                 new_value = cur_right_pose[i] + accum_delta_actions[i]
                 new_right_pose.append(new_value)
             final_gripper = delta_actions[-1][-1]
