@@ -4,7 +4,7 @@ from policy_client import PolicyClient
 
 policy = PolicyClient(base_url='http://localhost:2345')
 
-cap = cv2.VideoCapture('250606_101355.mp4')
+cap = cv2.VideoCapture('right_test.mp4')
 
 while cap.isOpened():
     ret, frame = cap.read()

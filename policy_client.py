@@ -1,11 +1,14 @@
 # 这段代码是用来与一个远程服务器进行交互的客户端，主要用于处理图像和动作指令。
 # 它可以发送图像和文本指令到服务器，并接收处理后的动作
+# arm_mode: 'single' or 'dual'
+# temperature: 控制生成动作的随机性，值越高，动作越随机
 import json
 import requests
 import cv2
 
 class PolicyClient:
-    def __init__(self, base_url='http://localhost:2345', max_frames=6, temperature=0.6, language_instruction="Pick up the straw and put it into the cup"):
+    def __init__(self, base_url='http://localhost:2345', max_frames=6, temperature=0.6, 
+                 language_instruction="Pick up the straw and put it into the cup", arm_mode='dual'):
         self.base_url = base_url
         self.max_frames = max_frames
         self.temperature = temperature
@@ -20,8 +23,12 @@ class PolicyClient:
         self.test_demo = self.load_test_demo()
         self.test_index = 0
 
-        # last action
-        self.last_action = [0, 0, 0, 0, 0, 0, -1]
+        # last action initial value 根据模式长度不同
+        if arm_mode == 'dual':
+            self.last_action = [0]*14 + [-1]
+        else:
+            self.last_action = [0, 0, 0, 0, 0, 0, -1]
+        self.arm_mode = arm_mode
 
 
     def reset(self):
@@ -50,20 +57,24 @@ class PolicyClient:
                 data={"text": self.language_instruction, "temperature": self.temperature},
                 files=encoded_imgs
             )
-        action = ret.json().get('response')
+        # —— begin patch —— 
+        # 检查 HTTP 返回码
+        if ret.status_code != 200:
+            print(f"[Warning] Server returned status {ret.status_code}, body={repr(ret.text)}")
+            return self.last_action
+        # 捕获 JSON 解析错误
+        try:
+            payload = ret.json()
+        except ValueError:
+            print(f"[Warning] Failed to parse JSON: {repr(ret.text)}")
+            return self.last_action
+        action = payload.get('response')
+        # —— end patch —— 
         
         #读取本地数据并replay动作测试，使用时注释掉上方上传服务器代码
         # action = self.test_demo[self.test_index] + [0]
         # self.test_index +=1
         return self.action_decoder(action) if self.decode_answer else action
-
-    def decode_action(self, str_action=""):
-        # return [0, 0, 0, 0, 0, 0, 1]
-        action = []
-        action += self.test_demo[self.test_index] + [1]
-        if self.test_index < len(self.test_demo) - 1:
-            self.test_index += 1
-        return action
 
     def load_test_demo(self):
         # test demo
@@ -76,8 +87,8 @@ class PolicyClient:
         for j in joint:
             delta_joint.append([j[i] - cur[i] for i in range(len(j))])
             cur = j
-        return delta_joint  # joint  delta_joint
-
+        return delta_joint  # joint  delta_joint         
+    
     def action_decoder(self, act):
         print(act)
         act = act.split(" ")
