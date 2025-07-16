@@ -141,7 +141,8 @@ def maniplation(policy_url="http://localhost:2345", right_arm_url="192.168.10.19
 
     # 实例化逆解库             
     qp = QPIK("RM75B", dT)
-    # qp.set_install_angle([90, 180, 0], 'deg')
+    
+    #qp.set_install_angle([90, 180, 0], 'deg')
     qp.set_install_angle([0, 90, 0], 'deg')
 
     qp.set_work_cs_params([0, 0, 0, 0, 1.570, 0])
@@ -149,7 +150,8 @@ def maniplation(policy_url="http://localhost:2345", right_arm_url="192.168.10.19
 
     #qp.set_joint_limit_max([ 178,  130,  178,  135,  178,  128, 360], 'deg')
     #qp.set_joint_limit_min([-178, -130, -178, -135, -178, -128, -360], 'deg')
-    qp.set_joint_limit_max([ -40,  -10,  178,  135,  178,  128, 360], 'deg')
+    
+    qp.set_joint_limit_max([ -40,  -10,  178,  135,  178,  128, 360], 'deg') #插吸管换这个
     qp.set_joint_limit_min([-140, -100, -178, -135, -178, -128, -360], 'deg')
     
     qp.set_7dof_elbow_min_angle(-135, 'deg')
@@ -164,17 +166,17 @@ def maniplation(policy_url="http://localhost:2345", right_arm_url="192.168.10.19
 
     left_arm = Arm(RM75, left_arm_url)
     left_arm.Set_Gripper_Release(500, block=False)
-    left_arm.Movej_Cmd(LEFT_INIT_JOINT, 20, 0, 0, True)
+    #left_arm.Movej_Cmd(LEFT_INIT_JOINT, 20, 0, 0, True)
     
     right_arm = Arm(RM75, right_arm_url)
     right_arm.Set_Gripper_Release(500, block=False)
-    right_arm.Movej_Cmd(RIGHT_INIT_JOINT, 20, 1, 0, 0)
+    right_arm.Movej_Cmd(RIGHT_INIT_JOINT, 20, 0, 0, True)
 
     # state queue
     right_pose_queue = StateQueue()
 
     _, cur_right_joint, cur_right_pose, _ = right_arm.Get_Current_Arm_State()
-
+    print(f"joint:{cur_right_joint}, pose: {cur_right_pose}")
     [right_pose_queue.enqueue(p) for p in [cur_right_pose] * right_pose_queue.maxlen]
 
     last_right_joint = cur_right_joint
@@ -235,7 +237,8 @@ def maniplation(policy_url="http://localhost:2345", right_arm_url="192.168.10.19
                         print("delta移动距离大于15cm, 危险, 已设置为0, 建议退出")
                         delta_right_actions[i] = 0
                     accum_delta_actions[i] += delta_right_actions[i]
-
+            #accum_delta_actions[3] += 0.15        
+            print(f"policy action: {accum_delta_actions}")
             new_right_pose = []
             for i in range(len(accum_delta_actions)):
                 if abs(accum_delta_actions[i]) > 0.50:
