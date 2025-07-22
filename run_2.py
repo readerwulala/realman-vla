@@ -141,23 +141,18 @@ def maniplation(policy_url="http://localhost:2345", right_arm_url="192.168.10.19
 
     # 实例化逆解库             
     qp = QPIK("RM75B", dT)
-    # qp.set_install_angle([90, 180, 0], 'deg')
-    qp.set_install_angle([0, -90, 0], 'deg')
-
-    qp.set_work_cs_params([0, 0, 0, 0, -1.570, 0])
+    #qp.set_install_angle([90, 180, 0], 'deg')
+    qp.set_install_angle([0, 90, 0], 'deg')
+    qp.set_work_cs_params([0, 0, 0, 0, 1.570, 0])
     qp.set_tool_cs_params([0, 0, 0, 0, 0, 0])
-
     #qp.set_joint_limit_max([ 178,  130,  178,  135,  178,  128, 360], 'deg')
     #qp.set_joint_limit_min([-178, -130, -178, -135, -178, -128, -360], 'deg')
-    qp.set_joint_limit_max([ -40,  -10,  178,  135,  178,  128, 360], 'deg')
+    qp.set_joint_limit_max([ -40,  -10,  178,  135,  178,  128, 360], 'deg') #插吸管换这个
     qp.set_joint_limit_min([-140, -100, -178, -135, -178, -128, -360], 'deg')
-    
     qp.set_7dof_elbow_min_angle(-135, 'deg')
     qp.set_7dof_elbow_max_angle(-3, 'deg')
-
     qp.set_7dof_q3_min_angle(-178,'deg')
     qp.set_7dof_q3_max_angle(178,'deg')
-
     # 设置运行过程中的关节速度约束
     qp.set_dq_max_weight([1, 1, 1, 1, 1, 1, 1])
     qp.set_error_weight([1, 1, 1, 1, 1, 1])
@@ -167,127 +162,132 @@ def maniplation(policy_url="http://localhost:2345", right_arm_url="192.168.10.19
     left_arm.Movej_Cmd(LEFT_INIT_JOINT, 20, 0, 0, True)
     right_arm = Arm(RM75, right_arm_url)
     right_arm.Set_Gripper_Release(500, block=False)
-    right_arm.Movej_Cmd(RIGHT_INIT_JOINT, 20, 1, 0, 0)
+    right_arm.Movej_Cmd(RIGHT_INIT_JOINT, 20, 0, 0, True)
 
     # state queue
     left_pose_queue = StateQueue()
+    right_pose_queue = StateQueue()
 
     _, cur_left_joint, cur_left_pose, _ = left_arm.Get_Current_Arm_State()
+    _, cur_right_joint, cur_right_pose, _ = right_arm.Get_Current_Arm_State()
 
-    [left_pose_queue.enqueue(p) for p in [cur_left_pose] * left_pose_queue.maxlen]
+    print(f"joint:{cur_right_joint}, pose: {cur_right_pose}")
+    
+    [left_pose_queue.enqueue(cur_left_pose) for _ in range(left_pose_queue.maxlen)]
+    [right_pose_queue.enqueue(cur_right_pose) for _ in range(right_pose_queue.maxlen)]  
 
+    last_right_joint = cur_right_joint
     last_left_joint = cur_left_joint
 
     # 用于存储运行目录
     base_log_dir = os.path.join('logs', datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
     os.makedirs(base_log_dir, exist_ok=True)
     step = 0
-
     print("初始化成功！等待手柄信号...")
 
     while MANIPLATION_RUNNIG:
         start_time = time.time()
 
-        _, cur_left_joint, cur_left_pose, _ = left_arm.Get_Current_Arm_State()   # pose状态
-        left_gripper = 0                                                            # 夹爪状态
-        left_pose_queue.enqueue(cur_left_pose)
-        if REALSENSE_IMAGE is None:
-            print("realsence 未接入")
-
+         # 1. 读当前左右末端 pose
+        _, _, cur_left_pose,  _ = left_arm.Get_Current_Arm_State()
+        _, _, cur_right_pose, _ = right_arm.Get_Current_Arm_State()
+        right_gripper = 0                                                          
+        
         if RESET_SIGNAL:
             RESET_SIGNAL = False
             left_arm.Set_Gripper_Release(500, block=False)
-            left_arm.Movej_CANFD(LEFT_INIT_JOINT, False)   
+            left_arm.Movej_CANFD(LEFT_INIT_JOINT, False)
+            right_arm.Set_Gripper_Release(500, block=False)
+            right_arm.Movej_CANFD(RIGHT_INIT_JOINT, False)
             time.sleep(dT)
             continue
 
         if not START:
             left_arm.Movej_CANFD(cur_left_joint, False)
+            right_arm.Movej_CANFD(cur_right_joint, False)
             time.sleep(dT)
             continue
-
-        if max(left_pose_queue.variance()) == -100: # 使用透传时需要
+        
+        if REALSENSE_IMAGE is None:
+            print("realsense 未接入")
+            continue
+        
+        if max(right_pose_queue.variance()) == -100: # 使用透传时需要
             # is running, and not to get policy action
             cur_left_joint = last_left_joint
+            cur_right_joint = last_right_joint
         #elif REALSENSE_IMAGE is not None or True:
+        
         elif REALSENSE_IMAGE is not None or True:
-            # getting policy action
-            cur_image = REALSENSE_IMAGE
-            #################################################################
-            # global cur_index, frames
-            # cur_image, cur_index = frames[cur_index], cur_index + 1
-            #################################################################
-            delta_actions = policy.process_frame(image=cur_image) #delta_actions 是 [dx, dy, dz, rx, ry, rz, gripper_value]
-            num_actions = len(delta_actions)
 
-            accum_delta_actions = [0.0]*len(cur_left_pose)
-            #print(f"policy action: {delta_actions}")
-            #delta_actions = delta_actions[0]
-            # new pose
+            delta_actions = np.array(policy.process_frame(image=REALSENSE_IMAGE), dtype=np.float32) #delta_actions 是 [dx, dy, dz, rx, ry, rz, gripper_value]
+            accum_l = np.zeros(6)
+            accum_r = np.zeros(6)
+            left_gripper = 0
+            right_gripper = 0
+            
             for single_action in delta_actions:
                 if START == False: break
-                delta_left_actions, left_gripper = single_action[:-1], single_action[-1]
-                print(f"夹爪{left_gripper}")
+                delta_left_actions, delta_right_actions = single_action[:7], single_action[7:]# 前7列：左臂，后7列：右臂
+                left_gripper, right_gripper = delta_left_actions[-1], delta_right_actions[-1]   #夹爪直接取最后的值
+                accum_l += delta_left_actions[:-1]
+                accum_r += delta_right_actions[:-1]
                 
-                for i in range(len(delta_left_actions)):
-                    if delta_left_actions[i] > 0.05:
-                        print("delta移动距离大于2cm, 危险, 已设置为0, 建议退出")
-                        delta_left_actions[i] = 0
-                    accum_delta_actions[i] += delta_left_actions[i]
-
-            new_left_pose = []
-            for i in range(len(accum_delta_actions)):
-                if abs(accum_delta_actions[i]) > 0.20:
-                    accum_delta_actions[i] = 0
-                    print("一帧移动大于15厘米, 危险, 已设置为0, 建议退出")
-                new_value = cur_left_pose[i] + accum_delta_actions[i]
-                new_left_pose.append(new_value)
-            final_gripper = delta_actions[-1][-1]
-            x, y, z = new_left_pose[:3]
-            euler = new_left_pose[3:]
-            R = euler_to_matrix(euler)
-            T = [[R[0][0], R[0][1], R[0][2], x],
+            for i in range(len(accum_l)):
+                if abs(accum_l[i]) > 0.50:
+                    accum_l[i] = 0
+                    print("左臂一帧移动大于50厘米, 危险, 已设置为0, 建议退出")
+                if abs(accum_r[i]) > 0.50:
+                    accum_r[i] = 0
+                    print("右臂一帧移动大于50厘米, 危险, 已设置为0, 建议退出")
+            # 计算新的末端 pose（xyz + rpy）
+            _, _, cur_left_pose, _  = left_arm.Get_Current_Arm_State()
+            _, _, cur_right_pose, _ = right_arm.Get_Current_Arm_State()
+            new_left  = cur_left_pose  + accum_l
+            new_right = cur_right_pose + accum_r
+            
+            # 构造变换矩阵
+            x, y, z = new_left[:3]
+            euler = new_left[3:]
+            R = euler_to_matrix(euler[3:])
+            T_left = [[R[0][0], R[0][1], R[0][2], x],
                 [R[1][0], R[1][1], R[1][2], y],
                 [R[2][0], R[2][1], R[2][2], z],
                 [0,       0,       0,       1]]
-
-            cur_left_joint = np.array(cur_left_joint) * deg2rad
-            cur_left_joint = qp.sovler(cur_left_joint, T)
-            cur_left_joint = [x * rad2deg for x in cur_left_joint]
+            x, y, z = new_right[:3]
+            euler = new_right[3:]
+            R = euler_to_matrix(euler[3:])
+            T_right = [[R[0][0], R[0][1], R[0][2], x], 
+                [R[1][0], R[1][1], R[1][2], y],
+                [R[2][0], R[2][1], R[2][2], z],
+                [0,       0,       0,       1]]
             
-            if START and REALSENSE_IMAGE is not None:
-                # 拷贝一份当前图像
-                tosave_image = REALSENSE_IMAGE.copy()
+            left_j  = np.deg2rad(left_arm.Get_Current_Arm_State()[1])
+            left_j  = qp.sovler(left_j, T_left)
+            left_j  = np.rad2deg(left_j).tolist()
+            right_j = np.deg2rad(right_arm.Get_Current_Arm_State()[1])
+            right_j = qp.sovler(right_j, T_right)
+            right_j = np.rad2deg(right_j).tolist()
 
-                # 每帧用同一个时间戳
-                ts = datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')
-                # 图片保存路径
-                img_path = os.path.join(base_log_dir, f"{ts}.png")
-                cv2.imwrite(img_path, tosave_image)
-
-                # 轨迹保存为 txt
-                txt_path = os.path.join(base_log_dir, f"{ts}.txt")
-                with open(txt_path, 'w') as f:
-                    # 简单写成每个维度一行，或 JSON 形式也行
-                    f.write("pose:\n")
-                    for v in new_left_pose:
-                        f.write(f"{v:.6f} ")
-                    f.write("\n")
-                    f.write(f"gripper: {final_gripper}\n")
-
-                step += 1
             # 下发夹爪指令和位姿指令
-            if final_gripper < 0.1:
+            if left_gripper < 0.5:
                 left_arm.Set_Gripper_Pick(500, 500, block=False) #0为抓
-            elif final_gripper > 0.9:
-                left_arm.Set_Gripper_Release(500, block=False)#1为放
             else:
-                left_arm.Set_Gripper_Release(500, block=False) 
-                print(f"Not in threshold: {left_gripper}")
-            left_arm.Movej_Cmd(cur_left_joint, 20, 0, 0, True)
+                left_arm.Set_Gripper_Release(500, block=False)#1为放
+            if right_gripper < 0.5:
+                right_arm.Set_Gripper_Pick(500, 500, block=False) #0为抓
+            else:
+                right_arm.Set_Gripper_Release(500, block=False)#1为放
+                
+            left_arm.Movej_Cmd(left_j,  20, 0, 0, True)
+            right_arm.Movej_Cmd(right_j, 20, 0, 0, True)
+
+            cur_left_joint = left_j
+            cur_right_joint = right_j
             last_left_joint = cur_left_joint
-            #print(f"Executing action {idx}/{num_actions}, left joint: {cur_left_joint}, gripper: {left_gripper}")
-            print(f"Executing actions: left joint: {cur_left_joint}, gripper: {final_gripper}")
+            last_right_joint = cur_right_joint
+            #print(f"Executing action {idx}/{num_actions}, right joint: {cur_right_joint}, gripper: {right_gripper}")
+            print(f"Executing actions: right joint: {cur_right_joint}, gripper: {final_gripper}")
 
         end_time = time.time()
         elapsed_time = end_time - start_time
@@ -308,6 +308,7 @@ if __name__ == '__main__':
     joystick = init_joy()
     while JOY_EVENT_RUNNING:
         for event in pygame.event.get():
+            
             if event.type == pygame.QUIT:
                 JOY_EVENT_RUNNING = False
                 MANIPLATION_RUNNIG = False

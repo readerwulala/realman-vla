@@ -166,7 +166,7 @@ def maniplation(policy_url="http://localhost:2345", right_arm_url="192.168.10.19
 
     left_arm = Arm(RM75, left_arm_url)
     left_arm.Set_Gripper_Release(500, block=False)
-    #left_arm.Movej_Cmd(LEFT_INIT_JOINT, 20, 0, 0, True)
+    left_arm.Movej_Cmd(LEFT_INIT_JOINT, 20, 0, 0, True)
     
     right_arm = Arm(RM75, right_arm_url)
     right_arm.Set_Gripper_Release(500, block=False)
@@ -192,7 +192,7 @@ def maniplation(policy_url="http://localhost:2345", right_arm_url="192.168.10.19
         start_time = time.time()
 
         _, cur_right_joint, cur_right_pose, _ = right_arm.Get_Current_Arm_State()   # pose状态
-        right_griper = 0                                                            # 夹爪状态
+        right_gripper = 0                                                            # 夹爪状态
         right_pose_queue.enqueue(cur_right_pose)
         if REALSENSE_IMAGE is None:
             print("realsence 未接入")
@@ -229,8 +229,8 @@ def maniplation(policy_url="http://localhost:2345", right_arm_url="192.168.10.19
             # new pose
             for single_action in delta_actions:
                 if START == False: break
-                delta_right_actions, right_griper = single_action[:-1], single_action[-1]
-                print(f"夹爪{right_griper}")
+                delta_right_actions, right_gripper = single_action[:-1], single_action[-1]
+                print(f"夹爪{right_gripper}")
 
                 for i in range(len(delta_right_actions)):
                     if delta_right_actions[i] > 0.15:
@@ -289,8 +289,9 @@ def maniplation(policy_url="http://localhost:2345", right_arm_url="192.168.10.19
                 right_arm.Set_Gripper_Release(500, block=False) 
                 print(f"Not in threshold")
             right_arm.Movej_Cmd(cur_right_joint, 20, 0, 0, True)
+            
             last_right_joint = cur_right_joint
-            #print(f"Executing action {idx}/{num_actions}, right joint: {cur_right_joint}, gripper: {right_griper}")
+            #print(f"Executing action {idx}/{num_actions}, right joint: {cur_right_joint}, gripper: {right_gripper}")
             print(f"Executing actions: right joint: {cur_right_joint}, gripper: {final_gripper}")
 
         end_time = time.time()

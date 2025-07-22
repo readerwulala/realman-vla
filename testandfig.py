@@ -4,7 +4,7 @@ import os
 from policy_client import PolicyClient
 
 policy = PolicyClient(base_url='http://localhost:2345')
-cap = cv2.VideoCapture('250303_102830_793.mp4')
+cap = cv2.VideoCapture('right_test.mp4')
 
 # 创建 logs 文件夹
 os.makedirs('logs', exist_ok=True)
