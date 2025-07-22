@@ -287,7 +287,8 @@ def maniplation(policy_url="http://localhost:2345", right_arm_url="192.168.10.19
             last_left_joint = cur_left_joint
             last_right_joint = cur_right_joint
             #print(f"Executing action {idx}/{num_actions}, right joint: {cur_right_joint}, gripper: {right_gripper}")
-            print(f"Executing actions: right joint: {cur_right_joint}, gripper: {final_gripper}")
+            print(f"Executing actions: right joint: {cur_right_joint}, gripper: {right_gripper}")
+            print(f"left joint: {cur_left_joint}, gripper: {left_gripper}")
 
         end_time = time.time()
         elapsed_time = end_time - start_time
