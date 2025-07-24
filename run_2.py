@@ -249,14 +249,14 @@ def maniplation(policy_url="http://localhost:2345", right_arm_url="192.168.10.19
             # 构造变换矩阵
             x, y, z = new_left[:3]
             euler = new_left[3:]
-            R = euler_to_matrix(euler[3:])
+            R = euler_to_matrix(euler)
             T_left = [[R[0][0], R[0][1], R[0][2], x],
                 [R[1][0], R[1][1], R[1][2], y],
                 [R[2][0], R[2][1], R[2][2], z],
                 [0,       0,       0,       1]]
             x, y, z = new_right[:3]
             euler = new_right[3:]
-            R = euler_to_matrix(euler[3:])
+            R = euler_to_matrix(euler)
             T_right = [[R[0][0], R[0][1], R[0][2], x], 
                 [R[1][0], R[1][1], R[1][2], y],
                 [R[2][0], R[2][1], R[2][2], z],

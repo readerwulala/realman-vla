@@ -244,20 +244,26 @@ def maniplation(policy_url="http://localhost:2345", right_arm_url="192.168.10.19
             # 计算新的末端 pose（xyz + rpy）
             _, _, cur_left_pose, _  = left_arm.Get_Current_Arm_State()
             _, _, cur_right_pose, _ = right_arm.Get_Current_Arm_State()
+            if action_arm < 0.5:
+                accum_r[:] = 0
+                right_gripper = 1
+            else:
+                accum_l[:] = 0
+                left_gripper = 1
             new_left  = cur_left_pose  + accum_l
             new_right = cur_right_pose + accum_r
             
             # 构造变换矩阵
             x, y, z = new_left[:3]
             euler = new_left[3:]
-            R = euler_to_matrix(euler[3:])
+            R = euler_to_matrix(euler)
             T_left = [[R[0][0], R[0][1], R[0][2], x],
                 [R[1][0], R[1][1], R[1][2], y],
                 [R[2][0], R[2][1], R[2][2], z],
                 [0,       0,       0,       1]]
             x, y, z = new_right[:3]
             euler = new_right[3:]
-            R = euler_to_matrix(euler[3:])
+            R = euler_to_matrix(euler)
             T_right = [[R[0][0], R[0][1], R[0][2], x], 
                 [R[1][0], R[1][1], R[1][2], y],
                 [R[2][0], R[2][1], R[2][2], z],
@@ -280,13 +286,13 @@ def maniplation(policy_url="http://localhost:2345", right_arm_url="192.168.10.19
             else:
                 right_arm.Set_Gripper_Release(500, block=False)#1为放
             
-            if action_arm < 0.5: #左臂接近零
+            if action_arm < 0.5:
                 left_arm.Movej_Cmd(left_j,  20, 0, 0, True)
+                cur_left_joint = left_j
             else:
                 right_arm.Movej_Cmd(right_j, 20, 0, 0, True)
-
-            cur_left_joint = left_j
-            cur_right_joint = right_j
+                cur_right_joint = right_j
+            
             last_left_joint = cur_left_joint
             last_right_joint = cur_right_joint
             #print(f"Executing action {idx}/{num_actions}, right joint: {cur_right_joint}, gripper: {right_gripper}")
