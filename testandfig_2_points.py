@@ -24,30 +24,21 @@ with open(output_path, 'w') as f:
 
         if frame_idx % frame_interval != 0:
             frame_idx += 1
-            continue  # 跳过帧
+            continue
 
-        delta_traj = policy.process_frame(image=frame)  # shape: (16, 14)
+        delta_traj = policy.process_frame(image=frame)  # shape: (16, 15)
         delta_traj = np.array(delta_traj, dtype=np.float32)
         if delta_traj.shape != (16, 15):
             print(f"Frame {frame_idx}: invalid shape {delta_traj.shape}")
             frame_idx += 1
             continue
 
-        delta_left_xyz = delta_traj[:, :3]
-        left_gripper = delta_traj[-1, 6]
-        delta_right_xyz = delta_traj[:, 7:10]
-        right_gripper = delta_traj[-1, 13]
-        action_arm = delta_traj[-1, 14]
-
-        current_xyz_left += np.sum(delta_left_xyz, axis=0)
-        current_xyz_right += np.sum(delta_right_xyz, axis=0)
-
-        left_part = ' '.join(f'{x:.6f}' for x in current_xyz_left) + f' {left_gripper:.6f}'
-        right_part = ' '.join(f'{x:.6f}' for x in current_xyz_right) + f' {right_gripper:.6f}'
-        line = f'{left_part} || {right_part} || {action_arm:.6f}'
-
+        # 展平写入
+        flattened = delta_traj.flatten()  # shape: (16*15,) = (240,)
+        line = ' '.join(f'{x:.6f}' for x in flattened)
         f.write(line + '\n')
-        print(f"Saved frame {saved_idx} (video frame {frame_idx}): {line}")
+
+        print(f"Saved frame {saved_idx} (video frame {frame_idx})")
         saved_idx += 1
         frame_idx += 1
 cap.release()

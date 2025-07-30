@@ -197,8 +197,12 @@ def maniplation(policy_url="http://localhost:2345", right_arm_url="192.168.10.19
             RESET_SIGNAL = False
             left_arm.Set_Gripper_Release(500, block=False)
             left_arm.Movej_CANFD(LEFT_INIT_JOINT, False)
+            cur_left_joint  = LEFT_INIT_JOINT.copy()
+            last_left_joint = cur_left_joint
             right_arm.Set_Gripper_Release(500, block=False)
             right_arm.Movej_CANFD(RIGHT_INIT_JOINT, False)
+            cur_right_joint = RIGHT_INIT_JOINT.copy()
+            last_right_joint= cur_right_joint
             time.sleep(dT)
             continue
 
