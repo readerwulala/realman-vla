@@ -59,7 +59,7 @@ START = False #控制是否开始执行策略推理（通过手柄 START 键置�
 JOY_EVENT_RUNNING = True
 MANIPLATION_RUNNIG = True #控制操作线程（机械臂+策略）是否继续执行
 REALSENSE_IMAGE = None
-
+FLAG = 0
 RESET_SIGNAL = False #由手柄触发，用于重置机械臂姿态到初始位姿
 
 # RIGTH_INIT_JOINT = [-112.0, -54.2, -15.2, -85.60, -14.7, 72.2, -33.3]
@@ -203,11 +203,15 @@ def maniplation(policy_url="http://localhost:2345", right_arm_url="192.168.10.19
     last_right_joint = cur_right_joint
     last_left_joint = cur_left_joint
 
+    arm_locked = False
+    arm_locker = None
+
     # 用于存储运行目录
     base_log_dir = os.path.join('logs', datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
     os.makedirs(base_log_dir, exist_ok=True)
     step = 0
     print("初始化成功！等待手柄信号...")
+
 
     while MANIPLATION_RUNNIG:
         start_time = time.time()
@@ -229,12 +233,14 @@ def maniplation(policy_url="http://localhost:2345", right_arm_url="192.168.10.19
             last_left_joint = LEFT_INIT_JOINT.copy()
             cur_right_joint  = RIGHT_INIT_JOINT.copy()
             last_right_joint = RIGHT_INIT_JOINT.copy()
+            arm_locked = False
             continue
 
         if not START:
             left_arm.Movej_CANFD(cur_left_joint, False)
             right_arm.Movej_CANFD(cur_right_joint, False)
             time.sleep(dT)
+            arm_locked = False
             continue
         
         if REALSENSE_IMAGE is None:
@@ -247,7 +253,9 @@ def maniplation(policy_url="http://localhost:2345", right_arm_url="192.168.10.19
             cur_right_joint = last_right_joint
         
         elif REALSENSE_IMAGE is not None or True:
-            arm_locker = wait_for_arm_lock(policy)  # 阻塞直到拿到锁定臂结果
+            if not arm_locked:
+                arm_locker = wait_for_arm_lock(policy)  # 阻塞直到拿到锁定臂结果
+                arm_locked = True
             delta_actions = np.array(policy.process_frame(image=REALSENSE_IMAGE), dtype=np.float32) #delta_actions 是 [dx, dy, dz, rx, ry, rz, gripper_value]
             accum_l = np.zeros(6)
             accum_r = np.zeros(6)
