@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # 用于双臂插吸管任务的特化脚本
+# 7.31修改，更新了reset逻辑，加入了锁定手臂的功能
 import threading
 from traceback import print_tb
 from typing import final
@@ -132,7 +133,29 @@ def wait_for_realsense(threshold=100, interval=0.1):
         time.sleep(interval)
     #cv2.imshow(REALSENSE_IMAGE)
     print("摄像头已就绪，启动策略线程")
+    
+def wait_for_arm_lock(policy, num_frames=10, threshold=0.5, interval=0.1):
+    """
+    等待前 num_frames 帧决策，统计多数后返回 0（左臂）或 1（右臂）。
+    policy: 已连接好的 PolicyClient 实例
+    num_frames: 缓存帧数
+    threshold: raw_arm > threshold 则视为 1，否则为 0
+    interval: 每帧轮询间隔（秒）
+    """
+    print(f"等待前 {num_frames} 帧模型输出以锁定手臂…")
+    buf = []
+    while len(buf) < num_frames:
+        # 获取一帧预测输出（假设每次只取第一条 action）
+        delta_actions = policy.process_frame(image=REALSENSE_IMAGE)
+        raw = int(delta_actions[0][14] > threshold)
+        buf.append(raw)
+        time.sleep(interval)
+    # 多数表决
+    selected = 1 if sum(buf) > num_frames / 2 else 0
+    print(f"🔒 锁定手臂：{'右臂' if selected else '左臂'}")
+    return selected
 
+    
 def maniplation(policy_url="http://localhost:2345", right_arm_url="192.168.10.19", left_arm_url="192.168.10.18", dT=0.1):
 
     global RESET_SIGNAL, REALSENSE_IMAGE, MANIPLATION_RUNNIG, START
@@ -201,6 +224,11 @@ def maniplation(policy_url="http://localhost:2345", right_arm_url="192.168.10.19
             right_arm.Set_Gripper_Release(500, block=False)
             right_arm.Movej_CANFD(RIGHT_INIT_JOINT, False)
             time.sleep(dT)
+            # reset同步更新内部状态
+            cur_left_joint  = LEFT_INIT_JOINT.copy()
+            last_left_joint = LEFT_INIT_JOINT.copy()
+            cur_right_joint  = RIGHT_INIT_JOINT.copy()
+            last_right_joint = RIGHT_INIT_JOINT.copy()
             continue
 
         if not START:
@@ -217,10 +245,9 @@ def maniplation(policy_url="http://localhost:2345", right_arm_url="192.168.10.19
             # is running, and not to get policy action
             cur_left_joint = last_left_joint
             cur_right_joint = last_right_joint
-        #elif REALSENSE_IMAGE is not None or True:
         
         elif REALSENSE_IMAGE is not None or True:
-
+            arm_locker = wait_for_arm_lock(policy)  # 阻塞直到拿到锁定臂结果
             delta_actions = np.array(policy.process_frame(image=REALSENSE_IMAGE), dtype=np.float32) #delta_actions 是 [dx, dy, dz, rx, ry, rz, gripper_value]
             accum_l = np.zeros(6)
             accum_r = np.zeros(6)
@@ -233,7 +260,7 @@ def maniplation(policy_url="http://localhost:2345", right_arm_url="192.168.10.19
                 left_gripper, right_gripper = delta_left_actions[-1], delta_right_actions[-1]   #夹爪直接取最后的值
                 accum_l += delta_left_actions[:-1]
                 accum_r += delta_right_actions[:-1]
-                
+            action_arm = arm_locker # 0 for left, 1 for right
             for i in range(len(accum_l)):
                 if abs(accum_l[i]) > 0.50:
                     accum_l[i] = 0
@@ -317,8 +344,7 @@ if __name__ == '__main__':
 
     joystick = init_joy()
     while JOY_EVENT_RUNNING:
-        for event in pygame.event.get():
-            
+        for event in pygame.event.get(): 
             if event.type == pygame.QUIT:
                 JOY_EVENT_RUNNING = False
                 MANIPLATION_RUNNIG = False
